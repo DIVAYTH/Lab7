@@ -3,32 +3,35 @@ package proga;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.ByteArrayInputStream;
-import java.io.ObjectInputStream;
+import java.io.*;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.SocketChannel;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.security.NoSuchAlgorithmException;
+import java.sql.SQLException;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 public class ServerReceiver {
     private static final Logger logger = LoggerFactory.getLogger(ServerReceiver.class);
+    private ByteArrayOutputStream baos = new ByteArrayOutputStream();
+    private ObjectOutputStream toClient = new ObjectOutputStream(baos);
     private SelectionKey key;
     private Command command;
-    private ExecutorService executor = Executors.newFixedThreadPool(10);
+    private CollectionManager manager;
+    private BDActivity bdActivity;
 
-    public ServerReceiver(SelectionKey key) {
+    public ServerReceiver(SelectionKey key) throws IOException {
         this.key = key;
+        this.manager = manager;
+        this.bdActivity = bdActivity;
     }
 
     /**
      * Метод получает команду от клиента
-     *
-     * @return
      */
-    public Future<Command> receive() {
-        return executor.submit(() -> {
+    public Command receive() {
+        try {
             ByteBuffer buffer = ByteBuffer.allocate(4096);
             SocketChannel channel = (SocketChannel) key.channel();
             int available = channel.read(buffer);
@@ -45,8 +48,9 @@ public class ServerReceiver {
             } else {
                 logger.info("От клиента получена команда " + command.getName());
             }
-            key.interestOps(SelectionKey.OP_WRITE);
-            return command;
-        });
+        } catch (IOException | ClassNotFoundException e) {
+        }
+        return command;
     }
 }
+

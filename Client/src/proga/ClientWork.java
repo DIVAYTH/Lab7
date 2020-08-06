@@ -86,7 +86,8 @@ public class ClientWork {
                         }
                         break;
                     case "execute_script":
-                        Command request = new Command(finalUserCommand[0], finalUserCommand[1], null, login);
+                        File file = new File(finalUserCommand[1]);
+                        Command request = new Command(finalUserCommand[0], file, login);
                         sendCommand(socket, request);
                         getAnswer(socket);
                         break;

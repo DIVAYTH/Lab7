@@ -12,10 +12,11 @@ import java.util.Map;
 
 public class ServerSender implements Runnable {
     private static final Logger logger = LoggerFactory.getLogger(ServerSender.class);
-    private SelectionKey key;
-    private ServerHandler answer;
 
-    public ServerSender(SelectionKey key, ServerHandler answer) {
+    private SelectionKey key;
+    private String answer;
+
+    public ServerSender(SelectionKey key, String answer) {
         this.key = key;
         this.answer = answer;
     }
@@ -23,11 +24,12 @@ public class ServerSender implements Runnable {
     /**
      * Метод отправляет результат выполнения команды клиенту
      */
-    @Override
     public void run() {
-        try {
-            SocketChannel channel = (SocketChannel) key.channel();
-            ByteBuffer buffer = ByteBuffer.wrap(answer.getBaos().toByteArray());
+        SocketChannel channel = (SocketChannel) key.channel();
+        try (ByteArrayOutputStream baos = new ByteArrayOutputStream();
+             ObjectOutputStream toClient = new ObjectOutputStream(baos)) {
+            toClient.writeObject(answer);
+            ByteBuffer buffer = ByteBuffer.wrap(baos.toByteArray());
             int available = channel.write(buffer);
             while (available > 0) {
                 available = channel.write(buffer);

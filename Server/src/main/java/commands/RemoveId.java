@@ -1,11 +1,19 @@
 package commands;
 
+import proga.BDActivity;
 import proga.CollectionManager;
 
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
 
 public class RemoveId extends AbstractCommand {
+    private CollectionManager manager;
+    private BDActivity bdActivity;
+    private String answer;
+
+    public RemoveId(CollectionManager manager, BDActivity bdActivity) {
+        this.manager = manager;
+        this.bdActivity = bdActivity;
+    }
 
     /**
      * Метод удаляет элемент по его id
@@ -15,28 +23,28 @@ public class RemoveId extends AbstractCommand {
      */
     @Override
     public String execute(String str, String login) throws NumberFormatException, InterruptedException {
-        final String[] answer = {""};
-        if (!(CollectionManager.getManager().col.size() == 0)) {
-            int id = Integer.parseInt(str);
-            try {
-                PreparedStatement ps = CollectionManager.getManager().connect.prepareStatement("DELETE FROM studygroup WHERE(id = ?) AND (login = ?)");
-                ps.setInt(1, id);
-                ps.setString(2, login);
-                ps.execute();
-            } catch (SQLException e) {
-                return "Ошибка при работе с БД (вероятно что-то с БД)";
+        Runnable delete = () -> {
+            synchronized (this) {
+                if (!(manager.col.size() == 0)) {
+                    int id = Integer.parseInt(str);
+                    try {
+                        bdActivity.deleteById(id, login);
+                    } catch (SQLException e) {
+                        answer = "Ошибка при работе с БД (вероятно что-то с БД)";
+                    }
+                    if (manager.col.removeIf(col -> col.getId() == id && col.getLogin().equals(login))) {
+                        answer = "Элемент удален";
+                    } else answer = "Нет элемента с таким id или пользователь не имеет доступа к этому элементу";
+                } else {
+                    answer = "Коллекция пуста";
+                }
+                notify();
             }
-            Runnable removeElement = () -> {
-                if (CollectionManager.getManager().col.removeIf(col -> col.getId() == id && col.getLogin().equals(login))) {
-                    answer[0] = "Элемент удален";
-                } else answer[0] = "Нет элемента с таким id или пользователь не имеет доступа к этому элементу";
-            };
-            Thread changeCol = new Thread(removeElement);
-            changeCol.start();
-            changeCol.join();
-            return String.valueOf(answer[0]);
-        } else {
-            return "Коллекция пуста";
+        };
+        new Thread(delete).start();
+        synchronized (this) {
+            wait();
         }
+        return answer;
     }
 }

@@ -12,16 +12,20 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.Collections;
 import java.util.Iterator;
 import java.util.Scanner;
 import java.util.concurrent.*;
 
 public class ServerConnection {
     private static final Logger logger = LoggerFactory.getLogger(ServerConnection.class);
+    private CollectionManager manager = new CollectionManager();
+    private BDActivity bdActivity = new BDActivity();
     private Scanner scanner = new Scanner(System.in);
     private Command command;
     private ServerHandler answer;
+    private CompletableFuture<Void> thread;
+    private ExecutorService poolSend = Executors.newCachedThreadPool();
+    private ExecutorService poolReceiver = Executors.newFixedThreadPool(10);
 
     /**
      * Метод реализует соединение и работу с клиентом
@@ -40,7 +44,8 @@ public class ServerConnection {
                     socketChannel.register(selector, SelectionKey.OP_ACCEPT);
                     logger.debug("Сервер запущен.");
                     logger.debug("Подключение к БД");
-                    CollectionManager.getManager().load(file);
+                    manager.loadToCol(file, bdActivity);
+                    manager.loadCommands(manager, bdActivity);
                     logger.debug("Сервер ожидает подключения клиентов");
                     while (selector.isOpen()) {
                         int count = selector.select();
@@ -58,22 +63,19 @@ public class ServerConnection {
                                     channel.register(selector, SelectionKey.OP_READ);
                                 }
                                 if (key.isReadable()) {
-                                    Future<Command> future = new ServerReceiver(key).receive();
-                                    command = future.get();
-                                    answer = new ServerHandler(command);
-                                    Thread process = new Thread(answer);
-                                    process.start();
-                                    process.join();
+                                    ServerReceiver serverReceiver = new ServerReceiver(key);
+                                    CompletableFuture<Void> thread = CompletableFuture.supplyAsync(serverReceiver::receive, poolReceiver)
+                                            .thenCompose(command -> CompletableFuture.supplyAsync(new ServerHandler(command, manager, bdActivity)::handler)
+                                                    .thenAccept(result -> poolSend.submit(new ServerSender(key, result))));
+                                    key.attach(thread);
+                                    key.interestOps(SelectionKey.OP_WRITE);
                                 }
                                 if (key.isWritable()) {
-                                    ExecutorService poolSend = Executors.newCachedThreadPool();
-                                    ServerSender send = new ServerSender(key, answer);
-                                    poolSend.execute(send);
-                                    poolSend.shutdown();
-                                    poolSend.awaitTermination(1, TimeUnit.MINUTES);
+                                    if (((CompletableFuture<Void>) key.attachment()).isDone())
+                                        key.interestOps(SelectionKey.OP_READ);
                                 }
                                 iter.remove();
-                            } catch (IOException | ExecutionException e) {
+                            } catch (IOException e) {
                                 logger.error("Клиент отключился");
                                 key.cancel();
                             }
