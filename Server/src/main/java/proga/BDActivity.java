@@ -27,7 +27,7 @@ public class BDActivity {
      * @return
      * @throws ClassNotFoundException
      */
-    public StudyGroup loadFromSQL(String file) throws ClassNotFoundException, IOException, SQLException {
+    public StudyGroup loadFromSQL(String file) throws ClassNotFoundException, IOException, SQLException, NullPointerException {
         FileInputStream bd = new FileInputStream(file);
         Properties properties = new Properties();
         properties.load(bd);
@@ -97,7 +97,6 @@ public class BDActivity {
     /**
      * Метод авторизует пользователя
      *
-     * @param baos
      * @param command
      * @return
      * @throws UnsupportedEncodingException
@@ -124,7 +123,7 @@ public class BDActivity {
      * @param login
      * @throws SQLException
      */
-    public void addToSQL(StudyGroup studyGroup, String login) throws SQLException {
+    public void addToSQL(StudyGroup studyGroup, String login) throws SQLException, NullPointerException {
         ps = connect.prepareStatement("INSERT INTO studygroup (id, name, x, y, " +
                 "creationDate, studentsCount, formOfEducation, semesterEnum, pername, height, hairColor, nationality, locX, locY, locZ, login) " +
                 "VALUES (nextval('idSGsequence'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
@@ -132,7 +131,11 @@ public class BDActivity {
         ps.setInt(2, studyGroup.getCoordinates().getX());
         ps.setDouble(3, studyGroup.getCoordinates().getY());
         ps.setObject(4, studyGroup.getCreationDate());
-        ps.setInt(5, studyGroup.getStudentsCount());
+        try {
+            ps.setInt(5, studyGroup.getStudentsCount());
+        } catch (NullPointerException e) {
+            ps.setObject(5, null);
+        }
         ps.setString(6, String.valueOf(studyGroup.getFormOfEducation()));
         ps.setObject(7, String.valueOf(studyGroup.getSemesterEnum()));
         ps.setString(8, studyGroup.getGroupAdmin().getName());
@@ -224,7 +227,7 @@ public class BDActivity {
      * @param login
      * @throws SQLException
      */
-    public void update(int id, String login) throws SQLException {
+    public void update(int id, String login) throws SQLException, NullPointerException {
         ps = connect.prepareStatement("UPDATE studygroup SET name = ? , x = ? , y = ?" +
                 ", creationDate = ?, studentsCount = ? , formOfEducation = ?, semesterEnum = ?, pername = ?, height = ?, hairColor = ? " +
                 ", nationality = ?, locX = ?, locY = ?, locZ = ? WHERE id = ? AND login = ?;");

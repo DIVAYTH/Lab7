@@ -28,27 +28,29 @@ public class Update extends AbstractCommand {
     public String execute(String str, StudyGroup studyGroup, String login) throws NumberFormatException, InterruptedException {
         Runnable update = () -> {
             synchronized (this) {
-                if (!(studyGroup == null)) {
-                    if (!(manager.col.size() == 0)) {
-                        int id = Integer.parseInt(str);
-                        try {
+                try {
+                    if (!(studyGroup == null)) {
+                        if (!(manager.col.size() == 0)) {
+                            int id = Integer.parseInt(str);
                             bdActivity.update(id, login);
-                        } catch (SQLException e) {
-                            answer = "Ошибка при работе с БД (вероятно что-то с БД)";
-                        }
-                        if (manager.col.removeIf(col -> col.getId() == id && col.getLogin().equals(login))) {
-                            studyGroup.setId(id);
-                            studyGroup.setLogin(login);
-                            manager.col.add(studyGroup);
-                            answer = "Элемент обновлен";
+                            if (manager.col.removeIf(col -> col.getId() == id && col.getLogin().equals(login))) {
+                                studyGroup.setId(id);
+                                studyGroup.setLogin(login);
+                                manager.col.add(studyGroup);
+                                answer = "Элемент обновлен";
+                            } else {
+                                answer = "Элемента с таким id нет или пользователь не имеет доступа к этому элементу";
+                            }
                         } else {
-                            answer = "Элемента с таким id нет или пользователь не имеет доступа к этому элементу";
+                            answer = "Коллекция пуста";
                         }
                     } else {
-                        answer = "Коллекция пуста";
+                        answer = "Ошибка при добавлении элемента. Поля указаны не верно";
                     }
-                } else {
-                    answer = "Ошибка при добавлении элемента. Поля указаны не верно";
+                } catch (SQLException e) {
+                    answer = "Ошибка при работе с БД (вероятно что-то с БД)";
+                } catch (NullPointerException e) {
+                    answer = "Ошибка при добавлении элемента. Поля в файле указаны не верно";
                 }
                 notify();
             }

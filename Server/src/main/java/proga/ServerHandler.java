@@ -1,8 +1,5 @@
 package proga;
 
-import commands.AbstractCommand;
-import commands.Add;
-import commands.Help;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,12 +46,9 @@ public class ServerHandler {
                     break;
                     case "remove_greater":
                     case "remove_by_id":
-                    case "remove_any_by_students_count": {
-                        result = manager.commandMap.get(command.getName()).execute(command.getLogin(), command.getArgs());
-                    }
-                    break;
+                    case "remove_any_by_students_count":
                     case "execute_script": {
-                        result = manager.commandMap.get(command.getName()).execute(command.getFile(), command.getLogin());
+                        result = manager.commandMap.get(command.getName()).execute(command.getArgs(), command.getLogin());
                     }
                     break;
                     case "add_if_max":
@@ -70,10 +64,10 @@ public class ServerHandler {
                 logger.debug("Обработана команда " + command.getName());
             }
         } catch (NoSuchAlgorithmException | ExecutionException | InterruptedException | UnsupportedEncodingException e) {
+            // Все под контролем
         } catch (SQLException e) {
-            logger.debug("Ошибка при работе с БД (вероятно что-то с БД)");
+            return "Ошибка при работе с БД (вероятно что-то с БД)";
         }
         return result;
     }
 }
-

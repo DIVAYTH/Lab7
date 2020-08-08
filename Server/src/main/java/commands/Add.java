@@ -3,13 +3,7 @@ package commands;
 import collectionClasses.StudyGroup;
 import proga.BDActivity;
 import proga.CollectionManager;
-
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.FutureTask;
-import java.util.concurrent.atomic.AtomicReference;
 
 public class Add extends AbstractCommand {
     private CollectionManager manager;
@@ -37,10 +31,12 @@ public class Add extends AbstractCommand {
                     studyGroup.setLogin(login);
                     manager.col.add(studyGroup);
                     answer = "Элемент коллекции добавлен";
-                    notify();
                 } catch (SQLException e) {
                     answer = "Ошибка при работе с БД (вероятно что-то с БД)";
+                } catch (NullPointerException e) {
+                    answer = "Ошибка при добавлении элемента. Поля в файле указаны не верно";
                 }
+                notify();
             }
         };
         new Thread(addElement).start();

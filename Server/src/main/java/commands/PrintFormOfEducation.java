@@ -27,8 +27,9 @@ public class PrintFormOfEducation extends AbstractCommand {
                     Stream<StudyGroup> stream = manager.col.stream();
                     answer = stream.filter(col -> col.getFormOfEducation() != null).sorted(new ComparatorByFormOfEducation())
                             .map(col -> "formOfEducation" + " - " + col.getFormOfEducation()).collect(Collectors.joining("\n"));
+                } else {
+                    answer = "Коллекция пустая";
                 }
-                answer = "Коллекция пустая";
                 notify();
             }
         };

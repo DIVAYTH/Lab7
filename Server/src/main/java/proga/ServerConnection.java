@@ -4,14 +4,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-
 import java.net.BindException;
 import java.net.InetSocketAddress;
 import java.net.SocketException;
-import java.nio.channels.SelectionKey;
-import java.nio.channels.Selector;
-import java.nio.channels.ServerSocketChannel;
-import java.nio.channels.SocketChannel;
+import java.nio.channels.*;
 import java.util.Iterator;
 import java.util.Scanner;
 import java.util.concurrent.*;
@@ -21,11 +17,9 @@ public class ServerConnection {
     private CollectionManager manager = new CollectionManager();
     private BDActivity bdActivity = new BDActivity();
     private Scanner scanner = new Scanner(System.in);
-    private Command command;
-    private ServerHandler answer;
-    private CompletableFuture<Void> thread;
+    private String infCol;
     private ExecutorService poolSend = Executors.newCachedThreadPool();
-    private ExecutorService poolReceiver = Executors.newFixedThreadPool(10);
+    private ExecutorService poolReceiver = Executors.newFixedThreadPool(2);
 
     /**
      * Метод реализует соединение и работу с клиентом
@@ -33,6 +27,7 @@ public class ServerConnection {
      * @throws IOException
      */
     public void connection(String file) throws IOException, ClassNotFoundException, InterruptedException {
+        logger.debug("Сервер запущен.");
         while (true) {
             try {
                 System.out.println("Введите порт");
@@ -42,10 +37,8 @@ public class ServerConnection {
                     socketChannel.bind(new InetSocketAddress(port));
                     socketChannel.configureBlocking(false);
                     socketChannel.register(selector, SelectionKey.OP_ACCEPT);
-                    logger.debug("Сервер запущен.");
-                    logger.debug("Подключение к БД");
-                    manager.loadToCol(file, bdActivity);
                     manager.loadCommands(manager, bdActivity);
+                    infCol = manager.loadToCol(file, bdActivity);
                     logger.debug("Сервер ожидает подключения клиентов");
                     while (selector.isOpen()) {
                         int count = selector.select();
@@ -60,24 +53,28 @@ public class ServerConnection {
                                     SocketChannel channel = socketChannel.accept();
                                     logger.debug("К серверу подключился клиент");
                                     channel.configureBlocking(false);
-                                    channel.register(selector, SelectionKey.OP_READ);
-                                }
-                                if (key.isReadable()) {
-                                    ServerReceiver serverReceiver = new ServerReceiver(key);
-                                    CompletableFuture<Void> thread = CompletableFuture.supplyAsync(serverReceiver::receive, poolReceiver)
-                                            .thenCompose(command -> CompletableFuture.supplyAsync(new ServerHandler(command, manager, bdActivity)::handler)
-                                                    .thenAccept(result -> poolSend.submit(new ServerSender(key, result))));
-                                    key.attach(thread);
-                                    key.interestOps(SelectionKey.OP_WRITE);
+                                    channel.register(selector, SelectionKey.OP_WRITE);
                                 }
                                 if (key.isWritable()) {
-                                    if (((CompletableFuture<Void>) key.attachment()).isDone())
+                                    if (infCol == null) {
+                                        poolSend.execute(new ServerSender(key, "Загружена коллекция размером " + manager.col.size()));
                                         key.interestOps(SelectionKey.OP_READ);
+                                    } else {
+                                        poolSend.execute(new ServerSender(key, infCol));
+                                        Thread.sleep(1000);
+                                        System.exit(1);
+                                    }
+                                }
+                                if (key.isReadable()) {
+                                    CompletableFuture.supplyAsync(new ServerReceiver(key)::receive, poolReceiver)
+                                            .thenCompose(command -> CompletableFuture.supplyAsync(new ServerHandler(command, manager, bdActivity)::handler)
+                                                    .thenAcceptAsync(result -> poolSend.submit(new ServerSender(key, result))));
+                                    key.interestOps(SelectionKey.OP_READ);
                                 }
                                 iter.remove();
-                            } catch (IOException e) {
+                            } catch (CancelledKeyException e) {
                                 logger.error("Клиент отключился");
-                                key.cancel();
+                                logger.debug("Сервер ожидает подключения клиентов");
                             }
                         }
                     }

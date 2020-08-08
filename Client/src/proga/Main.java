@@ -1,10 +1,9 @@
 package proga;
 
-import java.security.NoSuchAlgorithmException;
 import java.util.NoSuchElementException;
 
 public class Main {
-    public static void main(String[] args) throws NoSuchAlgorithmException, ClassNotFoundException {
+    public static void main(String[] args) throws ClassNotFoundException {
         try {
             Runtime.getRuntime().addShutdownHook(new Thread() {
                 public void run() {

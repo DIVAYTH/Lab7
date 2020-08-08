@@ -15,7 +15,7 @@ public class Show extends AbstractCommand {
     }
 
     /**
-     * Метод выводит элементы
+     * Метод выводит элементы коллекции
      *
      * @return
      */
@@ -28,6 +28,7 @@ public class Show extends AbstractCommand {
                 } else {
                     answer = "Коллекция пуста.";
                 }
+                notify();
             }
         };
         new Thread(show).start();

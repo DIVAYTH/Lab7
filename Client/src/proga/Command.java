@@ -2,8 +2,6 @@ package proga;
 
 import collectionClasses.StudyGroup;
 
-import java.io.BufferedInputStream;
-import java.io.File;
 import java.io.Serializable;
 
 /**
@@ -16,14 +14,6 @@ public class Command implements Serializable {
     private StudyGroup studyGroup;
     private String login;
     private String password;
-    private File file;
-
-    public Command(String name, String args, StudyGroup studyGroup, String login, String password) {
-        this.name = name;
-        this.args = args;
-        this.studyGroup = studyGroup;
-        this.login = login;
-    }
 
     public Command(String name, String login) {
         this.name = name;
@@ -53,12 +43,6 @@ public class Command implements Serializable {
         this.login = login;
     }
 
-    public Command(String name, File file, String login) {
-        this.name = name;
-        this.file = file;
-        this.login = login;
-    }
-
     public String getName() {
         return name;
     }
@@ -77,9 +61,5 @@ public class Command implements Serializable {
 
     public String getPassword() {
         return password;
-    }
-
-    public File getFile() {
-        return file;
     }
 }

@@ -27,7 +27,7 @@ public class AddIfMax extends AbstractCommand {
      * @return
      */
     @Override
-    public String execute(StudyGroup studyGroup, String login) throws InterruptedException, ExecutionException {
+    public String execute(StudyGroup studyGroup, String login) throws InterruptedException {
         Runnable addElement = () -> {
             synchronized (this) {
                 if (!(manager.col.size() == 0)) {

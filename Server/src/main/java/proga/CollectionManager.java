@@ -65,14 +65,21 @@ public class CollectionManager {
 
     /**
      * Метод помещает данные из SQL таблицы в коллекцию
+     *
+     * @return
      */
-    public void loadToCol(String file, BDActivity bdActivity) throws ClassNotFoundException {
+    public String loadToCol(String file, BDActivity bdActivity) throws ClassNotFoundException {
         try {
             col.add(bdActivity.loadFromSQL(file));
         } catch (SQLException e) {
-            logger.debug("Ошибка при добавлении элемента в БД (вероятно что-то с БД)");
+            logger.error("Сервер не подключился к БД");
+            return "Ошибка сервер не может подключиться к БД (вероятно что-то с БД)";
         } catch (IOException e) {
-            logger.debug("Файл не найден");
+            logger.error("Сервер не подключился к БД");
+            return "Файл с данными БД не найден";
+        } catch (NullPointerException e) {
+            return null;
         }
+        return null;
     }
 }

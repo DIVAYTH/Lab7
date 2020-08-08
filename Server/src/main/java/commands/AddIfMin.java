@@ -6,7 +6,6 @@ import proga.CollectionManager;
 
 import java.sql.SQLException;
 import java.util.Comparator;
-import java.util.concurrent.ExecutionException;
 import java.util.stream.Stream;
 
 public class AddIfMin extends AbstractCommand {
@@ -26,7 +25,7 @@ public class AddIfMin extends AbstractCommand {
      * @return
      */
     @Override
-    public String execute(StudyGroup studyGroup, String login) throws InterruptedException, ExecutionException {
+    public String execute(StudyGroup studyGroup, String login) throws InterruptedException {
         Runnable addElement = () -> {
             synchronized (this) {
                 if (!(manager.col.size() == 0)) {

@@ -27,8 +27,9 @@ public class PrintStudentsCount extends AbstractCommand {
                     Stream<StudyGroup> stream = manager.col.stream();
                     answer = stream.filter(col -> col.getStudentsCount() != null).sorted(new ComparatorByStudentCount())
                             .map(col -> "students count" + " - " + col.getStudentsCount()).collect(Collectors.joining("\n"));
+                } else {
+                    answer = "Коллекция пустая";
                 }
-                answer = "Коллекция пустая";
                 notify();
             }
         };

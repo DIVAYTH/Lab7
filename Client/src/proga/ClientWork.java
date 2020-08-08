@@ -7,13 +7,24 @@ import java.net.Socket;
 import java.util.Scanner;
 
 public class ClientWork {
+    private Scanner scanner = new Scanner(System.in);
+    private String login;
+    private String password;
+    private String command;
+    public boolean access;
 
     /**
-     * Метод выбирает команду на исполнение
+     * Основной метод клиента (отправляет необходимый объект на сервер)
      *
      * @param socket
      */
-    public void work(String command, Socket socket, String login, String password) throws IOException, ClassNotFoundException {
+    public void work(Socket socket) throws IOException, ClassNotFoundException {
+        if (access) {
+            command = scanner.nextLine();
+            access = false;
+        } else {
+            sign();
+        }
         String[] finalUserCommand = command.trim().split(" ");
         try {
             if (finalUserCommand.length == 1) {
@@ -86,10 +97,19 @@ public class ClientWork {
                         }
                         break;
                     case "execute_script":
-                        File file = new File(finalUserCommand[1]);
-                        Command request = new Command(finalUserCommand[0], file, login);
-                        sendCommand(socket, request);
-                        getAnswer(socket);
+                        StringBuilder file = new StringBuilder();
+                        try {
+                            FileReader reader = new FileReader(finalUserCommand[1]);
+                            int count;
+                            while ((count = reader.read()) != -1) {
+                                file.append((char) count);
+                            }
+                            Command request = new Command(finalUserCommand[0], file.toString(), null, login);
+                            sendCommand(socket, request);
+                            getAnswer(socket);
+                        } catch (FileNotFoundException e) {
+                            System.out.println("Такого файла нет");
+                        }
                         break;
                     default:
                         System.out.println("Неизвестная команда или команда введена без аргументов. Введите снова");
@@ -97,6 +117,51 @@ public class ClientWork {
             }
         } catch (ArrayIndexOutOfBoundsException e) {
             System.out.println("Отсутствует аргумент");
+        }
+    }
+
+    /**
+     * Метод отправляет логин и пароль для регистрации или авторизации
+     */
+    public void sign() {
+        while (true) {
+            System.out.println("Вы зарегестрированы?. Введите (yes) или (no)");
+            String regist = scanner.nextLine();
+            if (regist.equals("no")) {
+                System.out.println("Тогда зарегестрируемся.");
+                checkLoginPassword();
+                command = "reg";
+                break;
+            } else if (regist.equals("yes")) {
+                System.out.println("Тогда авторизуемся.");
+                checkLoginPassword();
+                command = "sign";
+                break;
+            }
+        }
+    }
+
+    /**
+     * Метод просит пользователя ввести логин и пароль
+     */
+    private void checkLoginPassword() {
+        while (true) {
+            System.out.println("Введите логин");
+            login = scanner.nextLine();
+            if (login.equals("")) {
+                System.out.println("Логин не может быть пустой строкой");
+            } else {
+                break;
+            }
+        }
+        while (true) {
+            System.out.println("Введите пароль");
+            password = scanner.nextLine();
+            if (password.equals("")) {
+                System.out.println("Пароль не может быть пустой строкой");
+            } else {
+                break;
+            }
         }
     }
 
@@ -126,13 +191,20 @@ public class ClientWork {
         String answer;
         ObjectInputStream fromServer = new ObjectInputStream(socket.getInputStream());
         answer = (String) fromServer.readObject();
-        if (answer.equals("exit")) {
-            System.exit(0);
-        } else if (answer.equals("Авторизация прошла успешно")) {
-            System.out.println("Вы успешно авторизованы. Можете ввести команду. Введите help чтобы узнать список доступных команд.");
-            Connection.commandAvailable = true;
-        } else {
-            System.out.println(answer);
+        switch (answer) {
+            case "exit":
+                System.exit(0);
+            case "Авторизация прошла успешно":
+                access = true;
+                System.out.println("Вы успешно авторизованы. Можете ввести команду. Введите help чтобы узнать список доступных команд.");
+                break;
+            case "Регистрация прошла успешно":
+                access = true;
+                System.out.println("Вы успешно зарегестрированы. Можете ввести команду. Введите help чтобы узнать список доступных команд.");
+                break;
+            default:
+                System.out.println(answer);
+                break;
         }
     }
 
@@ -234,7 +306,7 @@ public class ClientWork {
     }
 
     /**
-     * Метод создает элемент для коолекции
+     * Метод создает элемент для колекции
      *
      * @return
      */
