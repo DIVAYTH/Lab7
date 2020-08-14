@@ -3,9 +3,11 @@ package commands;
 import collectionClasses.StudyGroup;
 import proga.BDActivity;
 import proga.CollectionManager;
+import proga.ServerSender;
 
-import java.sql.PreparedStatement;
+import java.nio.channels.SelectionKey;
 import java.sql.SQLException;
+import java.util.concurrent.ExecutorService;
 
 public class Update extends AbstractCommand {
     private CollectionManager manager;
@@ -25,40 +27,33 @@ public class Update extends AbstractCommand {
      * @return
      */
     @Override
-    public String execute(String str, StudyGroup studyGroup, String login) throws NumberFormatException, InterruptedException {
+    public void executeCommand(ExecutorService poolSend, SelectionKey key, String str, StudyGroup studyGroup, String login) throws NumberFormatException, InterruptedException {
         Runnable update = () -> {
-            synchronized (this) {
-                try {
-                    if (!(studyGroup == null)) {
-                        if (!(manager.col.size() == 0)) {
-                            int id = Integer.parseInt(str);
-                            bdActivity.update(id, login);
-                            if (manager.col.removeIf(col -> col.getId() == id && col.getLogin().equals(login))) {
-                                studyGroup.setId(id);
-                                studyGroup.setLogin(login);
-                                manager.col.add(studyGroup);
-                                answer = "Элемент обновлен";
-                            } else {
-                                answer = "Элемента с таким id нет или пользователь не имеет доступа к этому элементу";
-                            }
+            try {
+                if (!(studyGroup == null)) {
+                    if (!(manager.col.size() == 0)) {
+                        int id = Integer.parseInt(str);
+                        bdActivity.update(id, login);
+                        if (manager.col.removeIf(col -> col.getId() == id && col.getLogin().equals(login))) {
+                            studyGroup.setId(id);
+                            studyGroup.setLogin(login);
+                            manager.col.add(studyGroup);
+                            poolSend.submit(new ServerSender(key, "Элемент обновлен"));
                         } else {
-                            answer = "Коллекция пуста";
+                            poolSend.submit(new ServerSender(key, "Элемента с таким id нет или пользователь не имеет доступа к этому элементу"));
                         }
                     } else {
-                        answer = "Ошибка при добавлении элемента. Поля указаны не верно";
+                        poolSend.submit(new ServerSender(key, "Коллекция пуста"));
                     }
-                } catch (SQLException e) {
-                    answer = "Ошибка при работе с БД (вероятно что-то с БД)";
-                } catch (NullPointerException e) {
-                    answer = "Ошибка при добавлении элемента. Поля в файле указаны не верно";
+                } else {
+                    poolSend.submit(new ServerSender(key, "Ошибка при добавлении элемента. Поля указаны не верно"));
                 }
-                notify();
+            } catch (SQLException e) {
+                poolSend.submit(new ServerSender(key, "Ошибка при работе с БД (вероятно что-то с БД)"));
+            } catch (NullPointerException e) {
+                poolSend.submit(new ServerSender(key, "Данные в скрипте введены не верно"));
             }
         };
         new Thread(update).start();
-        synchronized (this) {
-            wait();
-        }
-        return answer;
     }
 }

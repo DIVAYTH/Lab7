@@ -2,7 +2,10 @@ package commands;
 
 import collectionClasses.StudyGroup;
 import proga.CollectionManager;
+import proga.ServerSender;
 
+import java.nio.channels.SelectionKey;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -20,23 +23,16 @@ public class PrintStudentsCount extends AbstractCommand {
      * @return
      */
     @Override
-    public String execute() throws InterruptedException {
+    public void executeCommand(ExecutorService poolSend, SelectionKey key) throws InterruptedException {
         Runnable print = () -> {
-            synchronized (this) {
-                if (!(manager.col.size() == 0)) {
-                    Stream<StudyGroup> stream = manager.col.stream();
-                    answer = stream.filter(col -> col.getStudentsCount() != null).sorted(new ComparatorByStudentCount())
-                            .map(col -> "students count" + " - " + col.getStudentsCount()).collect(Collectors.joining("\n"));
-                } else {
-                    answer = "Коллекция пустая";
-                }
-                notify();
+            if (!(manager.col.size() == 0)) {
+                Stream<StudyGroup> stream = manager.col.stream();
+                poolSend.submit(new ServerSender(key, stream.filter(col -> col.getStudentsCount() != null).sorted(new ComparatorByStudentCount())
+                        .map(col -> "students count" + " - " + col.getStudentsCount()).collect(Collectors.joining("\n"))));
+            } else {
+                poolSend.submit(new ServerSender(key, "Коллекция пустая"));
             }
         };
         new Thread(print).start();
-        synchronized (this) {
-            wait();
-        }
-        return answer;
     }
 }

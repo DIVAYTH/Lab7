@@ -15,32 +15,32 @@ public class Command implements Serializable {
     private String login;
     private String password;
 
-    public Command(String name, String login) {
-        this.name = name;
-        this.login = login;
-    }
-
-    public Command(String name) {
-        this.name = name;
-    }
-
     public Command(String name, String login, String password) {
         this.name = name;
         this.login = login;
         this.password = password;
     }
 
-    public Command(String name, StudyGroup studyGroup, String login) {
+    public Command(String name, StudyGroup studyGroup, String login, String password) {
         this.name = name;
         this.studyGroup = studyGroup;
         this.login = login;
+        this.password = password;
     }
 
-    public Command(String name, String args, StudyGroup studyGroup, String login) {
+    public Command(String name, String args, StudyGroup studyGroup, String login, String password) {
         this.name = name;
         this.args = args;
         this.studyGroup = studyGroup;
         this.login = login;
+        this.password = password;
+    }
+
+    public Command(String name, String args, String login, String password) {
+        this.name = name;
+        this.args = args;
+        this.login = login;
+        this.password = password;
     }
 
     public String getName() {

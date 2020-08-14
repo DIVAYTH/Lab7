@@ -60,7 +60,6 @@ public class CollectionManager {
         commandMap.put("add_if_min", new AddIfMin(manager, bdActivity));
         commandMap.put("add_if_max", new AddIfMax(manager, bdActivity));
         commandMap.put("update", new Update(manager, bdActivity));
-        commandMap.put("execute_script", new ExecuteScript(manager));
     }
 
     /**
@@ -70,7 +69,7 @@ public class CollectionManager {
      */
     public String loadToCol(String file, BDActivity bdActivity) throws ClassNotFoundException {
         try {
-            col.add(bdActivity.loadFromSQL(file));
+            col = bdActivity.loadFromSQL(file);
         } catch (SQLException e) {
             logger.error("Сервер не подключился к БД");
             return "Ошибка сервер не может подключиться к БД (вероятно что-то с БД)";

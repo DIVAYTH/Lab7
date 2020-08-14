@@ -3,7 +3,11 @@ package commands;
 import collectionClasses.StudyGroup;
 import proga.BDActivity;
 import proga.CollectionManager;
+import proga.ServerSender;
+
+import java.nio.channels.SelectionKey;
 import java.sql.SQLException;
+import java.util.concurrent.ExecutorService;
 
 public class Add extends AbstractCommand {
     private CollectionManager manager;
@@ -22,27 +26,21 @@ public class Add extends AbstractCommand {
      * @return
      */
     @Override
-    public String execute(StudyGroup studyGroup, String login) throws InterruptedException {
+    public void executeCommand(ExecutorService poolSend, SelectionKey key, StudyGroup studyGroup, String login) throws InterruptedException {
         Runnable addElement = () -> {
-            synchronized (this) {
-                try {
-                    bdActivity.addToSQL(studyGroup, login);
-                    studyGroup.setId(bdActivity.getMAXId());
-                    studyGroup.setLogin(login);
-                    manager.col.add(studyGroup);
-                    answer = "Элемент коллекции добавлен";
-                } catch (SQLException e) {
-                    answer = "Ошибка при работе с БД (вероятно что-то с БД)";
-                } catch (NullPointerException e) {
-                    answer = "Ошибка при добавлении элемента. Поля в файле указаны не верно";
-                }
-                notify();
+            try {
+                long id = bdActivity.getSQLId();
+                bdActivity.addToSQL(studyGroup, login, id);
+                studyGroup.setId(id);
+                studyGroup.setLogin(login);
+                manager.col.add(studyGroup);
+                poolSend.submit(new ServerSender(key, "Элемент коллекции добавлен"));
+            } catch (SQLException e) {
+                poolSend.submit(new ServerSender(key, "Ошибка при работе с БД (вероятно что-то с БД)"));
+            } catch (NullPointerException e) {
+                poolSend.submit(new ServerSender(key, "Данные в скрипте введены не верно"));
             }
         };
         new Thread(addElement).start();
-        synchronized (this) {
-            wait();
-        }
-        return answer;
     }
 }

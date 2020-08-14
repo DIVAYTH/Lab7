@@ -17,7 +17,6 @@ public class ServerConnection {
     private CollectionManager manager = new CollectionManager();
     private BDActivity bdActivity = new BDActivity();
     private Scanner scanner = new Scanner(System.in);
-    private String infCol;
     private ExecutorService poolSend = Executors.newCachedThreadPool();
     private ExecutorService poolReceiver = Executors.newFixedThreadPool(2);
 
@@ -38,7 +37,7 @@ public class ServerConnection {
                     socketChannel.configureBlocking(false);
                     socketChannel.register(selector, SelectionKey.OP_ACCEPT);
                     manager.loadCommands(manager, bdActivity);
-                    infCol = manager.loadToCol(file, bdActivity);
+                    String infCol = manager.loadToCol(file, bdActivity);
                     logger.debug("Сервер ожидает подключения клиентов");
                     while (selector.isOpen()) {
                         int count = selector.select();
@@ -66,9 +65,7 @@ public class ServerConnection {
                                     }
                                 }
                                 if (key.isReadable()) {
-                                    CompletableFuture.supplyAsync(new ServerReceiver(key)::receive, poolReceiver)
-                                            .thenCompose(command -> CompletableFuture.supplyAsync(new ServerHandler(command, manager, bdActivity)::handler)
-                                                    .thenAcceptAsync(result -> poolSend.submit(new ServerSender(key, result))));
+                                    poolReceiver.submit(new ServerReceiver(key, manager, bdActivity, poolSend));
                                     key.interestOps(SelectionKey.OP_READ);
                                 }
                                 iter.remove();

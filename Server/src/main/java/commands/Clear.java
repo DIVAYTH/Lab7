@@ -2,8 +2,11 @@ package commands;
 
 import proga.BDActivity;
 import proga.CollectionManager;
+import proga.ServerSender;
 
+import java.nio.channels.SelectionKey;
 import java.sql.SQLException;
+import java.util.concurrent.ExecutorService;
 
 public class Clear extends AbstractCommand {
     private CollectionManager manager;
@@ -21,26 +24,19 @@ public class Clear extends AbstractCommand {
      * @return
      */
     @Override
-    public String execute(String login) throws InterruptedException {
+    public void executeCommand(ExecutorService poolSend, SelectionKey key, String login) throws InterruptedException {
         Runnable clear = () -> {
-            synchronized (this) {
-                try {
-                    bdActivity.clearSQL(login);
-                    if (manager.col.removeIf(col -> col.getLogin().equals(login))) {
-                        answer = "Коллекция очищена. Удалены все принадлежащие вам элементы";
-                    } else {
-                        answer = "В коллекции нет элементов принадлежащих пользователю";
-                    }
-                } catch (SQLException e) {
-                    answer = "Ошибка при работе с БД (вероятно что-то с БД)";
+            try {
+                bdActivity.clearSQL(login);
+                if (manager.col.removeIf(col -> col.getLogin().equals(login))) {
+                    poolSend.submit(new ServerSender(key, "Коллекция очищена. Удалены все принадлежащие вам элементы"));
+                } else {
+                    poolSend.submit(new ServerSender(key, "В коллекции нет элементов принадлежащих пользователю"));
                 }
-                notify();
+            } catch (SQLException e) {
+                poolSend.submit(new ServerSender(key, "Ошибка при работе с БД (вероятно что-то с БД)"));
             }
         };
         new Thread(clear).start();
-        synchronized (this) {
-            wait();
-        }
-        return answer;
     }
 }

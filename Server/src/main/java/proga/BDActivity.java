@@ -9,6 +9,7 @@ import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.sql.*;
 import java.util.Base64;
+import java.util.PriorityQueue;
 import java.util.Properties;
 
 public class BDActivity {
@@ -27,7 +28,8 @@ public class BDActivity {
      * @return
      * @throws ClassNotFoundException
      */
-    public StudyGroup loadFromSQL(String file) throws ClassNotFoundException, IOException, SQLException, NullPointerException {
+    public PriorityQueue<StudyGroup> loadFromSQL(String file) throws ClassNotFoundException, IOException, SQLException, NullPointerException {
+        PriorityQueue<StudyGroup> col = new PriorityQueue<>();
         FileInputStream bd = new FileInputStream(file);
         Properties properties = new Properties();
         properties.load(bd);
@@ -71,9 +73,10 @@ public class BDActivity {
             String loginSG = res.getString("login");
             studyGroup = new StudyGroup(id, name, new Coordinates(x, y), studentsCount, formOfEducation, semesterEnum,
                     new Person(perName, height, hairColor, nationality, new Location(locX, locY, locZ)), loginSG);
+            col.add(studyGroup);
         }
         logger.debug("Сервер подключился к БД");
-        return studyGroup;
+        return col;
     }
 
     /**
@@ -84,14 +87,19 @@ public class BDActivity {
      * @throws NoSuchAlgorithmException
      * @throws UnsupportedEncodingException
      */
-    public String registration(Command command) throws NoSuchAlgorithmException, UnsupportedEncodingException, SQLException {
-        hash = MessageDigest.getInstance("SHA-224");
-        PreparedStatement ps = connect.prepareStatement("INSERT INTO studygroup_login_password (login, password) VALUES (?, ?);");
-        ps.setString(1, command.getLogin());
-        ps.setString(2, Base64.getEncoder().encodeToString(hash.digest(command.getPassword().getBytes("UTF-8"))));
-        ps.execute();
-        logger.debug("Пользователь с логином " + command.getLogin() + " успешно зарегестрирован");
-        return "Регистрация прошла успешно";
+    public String registration(Command command) throws NoSuchAlgorithmException, UnsupportedEncodingException {
+        try {
+            hash = MessageDigest.getInstance("SHA-224");
+            PreparedStatement ps = connect.prepareStatement("INSERT INTO studygroup_login_password (login, password) VALUES (?, ?);");
+            ps.setString(1, command.getLogin());
+            ps.setString(2, Base64.getEncoder().encodeToString(hash.digest(command.getPassword().getBytes("UTF-8"))));
+            ps.execute();
+            logger.debug("Пользователь с логином " + command.getLogin() + " успешно зарегестрирован");
+            return "Регистрация прошла успешно";
+        } catch (SQLException e) {
+            logger.error("Ошибка при работе с БД (вероятно что-то с БД)");
+            return "Ошибка с бд регистрация не удалась (скорее всего такой пользователь уже существует)";
+        }
     }
 
     /**
@@ -101,19 +109,19 @@ public class BDActivity {
      * @return
      * @throws UnsupportedEncodingException
      */
-    public String authorization(Command command) throws UnsupportedEncodingException, SQLException, NoSuchAlgorithmException {
-        hash = MessageDigest.getInstance("SHA-224");
-        res = statement.executeQuery("SELECT * FROM studygroup_login_password;");
-        while (res.next()) {
-            if (command.getLogin().equals(res.getString("login")) && Base64.getEncoder()
-                    .encodeToString(hash.digest(command.getPassword().getBytes("UTF-8")))
-                    .equals(res.getString("password"))) {
-                logger.debug("Пользователь с логином " + command.getLogin() + " успешно авторизован.");
-                return "Авторизация прошла успешно";
-            }
+    public boolean authorization(Command command) throws UnsupportedEncodingException, NoSuchAlgorithmException {
+        try {
+            hash = MessageDigest.getInstance("SHA-224");
+            ps = connect.prepareStatement("SELECT * FROM studygroup_login_password WHERE (login = ?);");
+            ps.setString(1, command.getLogin());
+            res = ps.executeQuery();
+            res.next();
+            return Base64.getEncoder().encodeToString(hash.digest(command.getPassword().getBytes("UTF-8")))
+                    .equals(res.getString("password"));
+        } catch (SQLException e) {
+            logger.error("Ошибка при работе с БД (вероятно что-то с БД)");
+            return false;
         }
-        logger.debug("Пользователь ввел не верный пароль");
-        return "Логин или пароль введены неверно";
     }
 
     /**
@@ -123,47 +131,47 @@ public class BDActivity {
      * @param login
      * @throws SQLException
      */
-    public void addToSQL(StudyGroup studyGroup, String login) throws SQLException, NullPointerException {
+    public void addToSQL(StudyGroup studyGroup, String login, long id) throws SQLException, NullPointerException {
         ps = connect.prepareStatement("INSERT INTO studygroup (id, name, x, y, " +
                 "creationDate, studentsCount, formOfEducation, semesterEnum, pername, height, hairColor, nationality, locX, locY, locZ, login) " +
-                "VALUES (nextval('idSGsequence'), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
-        ps.setString(1, studyGroup.getName());
-        ps.setInt(2, studyGroup.getCoordinates().getX());
-        ps.setDouble(3, studyGroup.getCoordinates().getY());
-        ps.setObject(4, studyGroup.getCreationDate());
+                "VALUES (? , ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);");
+        ps.setLong(1, id);
+        ps.setString(2, studyGroup.getName());
+        ps.setInt(3, studyGroup.getCoordinates().getX());
+        ps.setDouble(4, studyGroup.getCoordinates().getY());
+        ps.setObject(5, studyGroup.getCreationDate());
         try {
-            ps.setInt(5, studyGroup.getStudentsCount());
+            ps.setInt(6, studyGroup.getStudentsCount());
         } catch (NullPointerException e) {
-            ps.setObject(5, null);
+            ps.setObject(6, null);
         }
-        ps.setString(6, String.valueOf(studyGroup.getFormOfEducation()));
-        ps.setObject(7, String.valueOf(studyGroup.getSemesterEnum()));
-        ps.setString(8, studyGroup.getGroupAdmin().getName());
+        ps.setString(7, String.valueOf(studyGroup.getFormOfEducation()));
+        ps.setObject(8, String.valueOf(studyGroup.getSemesterEnum()));
+        ps.setString(9, studyGroup.getGroupAdmin().getName());
         try {
-            ps.setInt(9, studyGroup.getGroupAdmin().getHeight());
+            ps.setInt(10, studyGroup.getGroupAdmin().getHeight());
         } catch (NullPointerException e) {
-            ps.setObject(9, null);
+            ps.setObject(10, null);
         }
-        ps.setObject(10, String.valueOf(studyGroup.getGroupAdmin().getHairColor()));
-        ps.setObject(11, String.valueOf(studyGroup.getGroupAdmin().getNationality()));
-        ps.setDouble(12, studyGroup.getGroupAdmin().getLocation().getX());
-        ps.setInt(13, studyGroup.getGroupAdmin().getLocation().getY());
-        ps.setInt(14, studyGroup.getGroupAdmin().getLocation().getZ());
-        ps.setString(15, login);
+        ps.setObject(11, String.valueOf(studyGroup.getGroupAdmin().getHairColor()));
+        ps.setObject(12, String.valueOf(studyGroup.getGroupAdmin().getNationality()));
+        ps.setDouble(13, studyGroup.getGroupAdmin().getLocation().getX());
+        ps.setInt(14, studyGroup.getGroupAdmin().getLocation().getY());
+        ps.setInt(15, studyGroup.getGroupAdmin().getLocation().getZ());
+        ps.setString(16, login);
         ps.execute();
     }
 
     /**
-     * Метод получает максимальный id
+     * Метод получает сгенерированное id
      *
      * @return
      * @throws SQLException
      */
-    public long getMAXId() throws SQLException {
-        res = statement.executeQuery("SELECT MAX(id) FROM studygroup");
+    public long getSQLId() throws SQLException {
+        ResultSet res = statement.executeQuery("SELECT nextval('idSGsequence');");
         res.next();
-        long id = res.getLong(1);
-        return id;
+        return res.getLong(1);
     }
 
     /**

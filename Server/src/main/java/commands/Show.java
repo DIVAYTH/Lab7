@@ -2,7 +2,10 @@ package commands;
 
 import collectionClasses.StudyGroup;
 import proga.CollectionManager;
+import proga.ServerSender;
 
+import java.nio.channels.SelectionKey;
+import java.util.concurrent.ExecutorService;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
@@ -19,22 +22,15 @@ public class Show extends AbstractCommand {
      *
      * @return
      */
-    public String execute() throws InterruptedException {
+    public void executeCommand(ExecutorService poolSend, SelectionKey key) throws InterruptedException {
         Runnable show = () -> {
-            synchronized (this) {
-                if (manager.col.size() != 0) {
-                    Stream<StudyGroup> stream = manager.col.stream();
-                    answer = stream.map(StudyGroup::toString).collect(Collectors.joining("\n"));
-                } else {
-                    answer = "Коллекция пуста.";
-                }
-                notify();
+            if (manager.col.size() != 0) {
+                Stream<StudyGroup> stream = manager.col.stream();
+                poolSend.submit(new ServerSender(key, stream.map(StudyGroup::toString).collect(Collectors.joining("\n"))));
+            } else {
+                poolSend.submit(new ServerSender(key, "Коллекция пуста."));
             }
         };
         new Thread(show).start();
-        synchronized (this) {
-            wait();
-        }
-        return answer;
     }
 }
